@@ -189,13 +189,13 @@ static int get_dmenu_async ( DmenuModePrivateData *pd, int sync_pre_read )
 static GString *get_next_element( DmenuModePrivateData *pd )
 {
   int seplen = strlen(pd->separator);
-  GString *separator = g_string_new(pd->separator);
+  GString *separator = g_string_new(g_strcompress(pd->separator));
   /* struct ElementInfo *einfo = malloc(sizeof(struct ElementInfo)); */
   GString *data = g_string_new("");
   while ( TRUE ) {
     gsize len   = 0;
     /* gsize len2 = 0; */
-    char *firstpart = g_data_input_stream_read_upto ( pd->data_input_stream, pd->separator, 1, &len, NULL, NULL );
+    char *firstpart = g_data_input_stream_read_upto ( pd->data_input_stream, separator->str, 1, &len, NULL, NULL );
     if (firstpart == NULL) {
       g_free (firstpart);
       break;
@@ -204,7 +204,7 @@ static GString *get_next_element( DmenuModePrivateData *pd )
     g_free (firstpart);
     int flag = 0;
     GString *maybesep = g_string_new("");
-    for (int i=0; i < seplen; i++) {
+    for (int i=0; i < separator->len; i++) {
       guchar val = g_data_input_stream_read_byte ( pd->data_input_stream, NULL, NULL );
       if (val == 0) {
         flag = 1;
@@ -439,7 +439,7 @@ static int dmenu_mode_init ( Mode *sw )
     mode_set_private_data ( sw, g_malloc0 ( sizeof ( DmenuModePrivateData ) ) );
     DmenuModePrivateData *pd = (DmenuModePrivateData *) mode_get_private_data ( sw );
 
-    pd->separator     = "123\n";
+    pd->separator     = "987\n";
     pd->selected_line = UINT32_MAX;
 
     find_arg_str ( "-mesg", &( pd->message ) );
