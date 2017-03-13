@@ -73,7 +73,7 @@ typedef struct
 {
     /** Settings */
     // Separator.
-    char              separator;
+    char              *separator;
 
     unsigned int      selected_line;
     char              *message;
@@ -133,7 +133,7 @@ static void async_read_callback ( GObject *source_object, GAsyncResult *res, gpo
         g_free ( data );
         rofi_view_reload ();
 
-        g_data_input_stream_read_upto_async ( pd->data_input_stream, &( pd->separator ), 1, G_PRIORITY_LOW, pd->cancel,
+        g_data_input_stream_read_upto_async ( pd->data_input_stream, pd->separator, 1, G_PRIORITY_LOW, pd->cancel,
                                               async_read_callback, pd );
         return;
     }
@@ -147,7 +147,7 @@ static void async_read_callback ( GObject *source_object, GAsyncResult *res, gpo
             read_add ( pd, "", 0 );
             rofi_view_reload ();
 
-            g_data_input_stream_read_upto_async ( pd->data_input_stream, &( pd->separator ), 1, G_PRIORITY_LOW, pd->cancel,
+            g_data_input_stream_read_upto_async ( pd->data_input_stream, pd->separator, 1, G_PRIORITY_LOW, pd->cancel,
                                                   async_read_callback, pd );
             return;
         }
@@ -172,7 +172,7 @@ static int get_dmenu_async ( DmenuModePrivateData *pd, int sync_pre_read )
 {
     while ( sync_pre_read-- ) {
         gsize len   = 0;
-        char  *data = g_data_input_stream_read_upto ( pd->data_input_stream, &( pd->separator ), 1, &len, NULL, NULL );
+        char  *data = g_data_input_stream_read_upto ( pd->data_input_stream, pd->separator, 1, &len, NULL, NULL );
         if ( data == NULL ) {
             g_input_stream_close_async ( G_INPUT_STREAM ( pd->input_stream ), G_PRIORITY_LOW, pd->cancel, async_close_callback, pd );
             return FALSE;
@@ -181,19 +181,67 @@ static int get_dmenu_async ( DmenuModePrivateData *pd, int sync_pre_read )
         read_add ( pd, data, len );
         g_free ( data );
     }
-    g_data_input_stream_read_upto_async ( pd->data_input_stream, &( pd->separator ), 1, G_PRIORITY_LOW, pd->cancel,
+    g_data_input_stream_read_upto_async ( pd->data_input_stream, pd->separator, 1, G_PRIORITY_LOW, pd->cancel,
                                           async_read_callback, pd );
     return TRUE;
 }
+
+/* struct ElementInfo { */
+/*   char * text; */
+/*   gsize len; */
+/* }; */
+
+static GString *get_next_element( DmenuModePrivateData *pd )
+{
+  int seplen = strlen(pd->separator);
+  /* struct ElementInfo *einfo = malloc(sizeof(struct ElementInfo)); */
+  GString *data = g_string_new("");
+  while ( TRUE ) {
+    gsize len   = 0;
+    gsize len2 = 0;
+    char *firstpart = g_data_input_stream_read_upto ( pd->data_input_stream, pd->separator, 1, &len, NULL, NULL );
+    if (firstpart == NULL) {
+      g_free (firstpart);
+      break;
+    }
+    g_string_append(data, firstpart);
+    char *maybesep = g_data_input_stream_read_upto ( pd->data_input_stream, pd->separator+seplen-1, 1, &len2, NULL, NULL );
+    if (maybesep == NULL){
+      g_free (maybesep);
+      break;
+    }
+    char finalsep = g_data_input_stream_read_byte ( pd->data_input_stream, NULL, NULL );
+    if (finalsep == 0){
+      g_string_append(data, maybesep);
+      g_free (maybesep);
+      break;
+    }
+    else if (finalsep != pd->separator[seplen-1]){
+      g_string_append(data, maybesep);
+      g_string_append_c(data, finalsep);
+    }
+    else {
+      g_free (firstpart);
+      g_free (maybesep);
+      break;
+    }
+    g_free (firstpart);
+    g_free (maybesep);
+  }
+  return data;
+}
+
+
 static void get_dmenu_sync ( DmenuModePrivateData *pd )
 {
     while  ( TRUE ) {
         gsize len   = 0;
-        char  *data = g_data_input_stream_read_upto ( pd->data_input_stream, &( pd->separator ), 1, &len, NULL, NULL );
-        if ( data == NULL ) {
+        GString *einfo = get_next_element(pd);
+        char *data = einfo->str;
+        len = einfo->len;
+        if ( len == 0 ) {
             break;
         }
-        g_data_input_stream_read_byte ( pd->data_input_stream, NULL, NULL );
         read_add ( pd, data, len );
         g_free ( data );
     }
@@ -395,13 +443,13 @@ static int dmenu_mode_init ( Mode *sw )
     mode_set_private_data ( sw, g_malloc0 ( sizeof ( DmenuModePrivateData ) ) );
     DmenuModePrivateData *pd = (DmenuModePrivateData *) mode_get_private_data ( sw );
 
-    pd->separator     = '\n';
+    pd->separator     = "123\n";
     pd->selected_line = UINT32_MAX;
 
     find_arg_str ( "-mesg", &( pd->message ) );
 
     // Input data separator.
-    find_arg_char ( "-sep", &( pd->separator ) );
+    find_arg_str ( "-sep", &( pd->separator ) );
 
     find_arg_uint (  "-selected-row", &( pd->selected_line ) );
     // By default we print the unescaped line back.
@@ -733,7 +781,7 @@ void print_dmenu_options ( void )
     print_help_msg ( "-select", "[string]", "Select the first row that matches", NULL, is_term );
     print_help_msg ( "-password", "", "Do not show what the user inputs. Show '*' instead.", NULL, is_term );
     print_help_msg ( "-markup-rows", "", "Allow and render pango markup as input data.", NULL, is_term );
-    print_help_msg ( "-sep", "[char]", "Element separator.", "'\\n'", is_term );
+    print_help_msg ( "-sep", "[string]", "Element separator.", "'\\n'", is_term );
     print_help_msg ( "-input", "[filename]", "Read input from file instead from standard input.", NULL, is_term );
     print_help_msg ( "-sync", "", "Force dmenu to first read all input data, then show dialog.", NULL, is_term );
     print_help_msg ( "-async-pre-read", "[number]", "Read several entries blocking before switching to async mode", "25", is_term );
