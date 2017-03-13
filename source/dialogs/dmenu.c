@@ -202,13 +202,20 @@ static GString *get_next_element( DmenuModePrivateData *pd )
     }
     g_string_append(data, firstpart);
     g_free (firstpart);
+    int flag = 0;
     GString *maybesep = g_string_new("");
     for (int i=0; i < seplen; i++) {
       guchar val = g_data_input_stream_read_byte ( pd->data_input_stream, NULL, NULL );
       if (val == 0) {
+        flag = 1;
         break;
       }
       g_string_append_c(maybesep, val);
+    }
+    if (flag) {
+      g_string_append(data, maybesep->str);
+      g_string_free(maybesep, TRUE);
+      break;
     }
     if (g_string_equal(separator, maybesep)) {
       g_string_free(maybesep, TRUE);
