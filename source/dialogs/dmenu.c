@@ -186,47 +186,36 @@ static int get_dmenu_async ( DmenuModePrivateData *pd, int sync_pre_read )
     return TRUE;
 }
 
-/* struct ElementInfo { */
-/*   char * text; */
-/*   gsize len; */
-/* }; */
-
 static GString *get_next_element( DmenuModePrivateData *pd )
 {
   int seplen = strlen(pd->separator);
+  GString *separator = g_string_new(pd->separator);
   /* struct ElementInfo *einfo = malloc(sizeof(struct ElementInfo)); */
   GString *data = g_string_new("");
   while ( TRUE ) {
     gsize len   = 0;
-    gsize len2 = 0;
+    /* gsize len2 = 0; */
     char *firstpart = g_data_input_stream_read_upto ( pd->data_input_stream, pd->separator, 1, &len, NULL, NULL );
     if (firstpart == NULL) {
       g_free (firstpart);
       break;
     }
     g_string_append(data, firstpart);
-    char *maybesep = g_data_input_stream_read_upto ( pd->data_input_stream, pd->separator+seplen-1, 1, &len2, NULL, NULL );
-    if (maybesep == NULL){
-      g_free (maybesep);
-      break;
-    }
-    char finalsep = g_data_input_stream_read_byte ( pd->data_input_stream, NULL, NULL );
-    if (finalsep == 0){
-      g_string_append(data, maybesep);
-      g_free (maybesep);
-      break;
-    }
-    else if (finalsep != pd->separator[seplen-1]){
-      g_string_append(data, maybesep);
-      g_string_append_c(data, finalsep);
-    }
-    else {
-      g_free (firstpart);
-      g_free (maybesep);
-      break;
-    }
     g_free (firstpart);
-    g_free (maybesep);
+    GString *maybesep = g_string_new("");
+    for (int i=0; i < seplen; i++) {
+      guchar val = g_data_input_stream_read_byte ( pd->data_input_stream, NULL, NULL );
+      if (val == 0) {
+        break;
+      }
+      g_string_append_c(maybesep, val);
+    }
+    if (g_string_equal(separator, maybesep)) {
+      g_string_free(maybesep, TRUE);
+      break;
+    }
+    g_string_append(data, maybesep->str);
+    g_string_free(maybesep, TRUE);
   }
   return data;
 }
