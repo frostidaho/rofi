@@ -212,10 +212,9 @@ static char add_separator_maybe (GString *separator, GString *data, GDataInputSt
   return 'c';                   /* 'c' -> continue */
 }
 
-static GString *get_next_element( DmenuModePrivateData *pd )
+static void get_next_element( DmenuModePrivateData *pd, GString *data )
 {
   GString *separator = g_string_new(g_strcompress(pd->separator));
-  GString *data = g_string_new("");
   while ( TRUE ) {
     gsize len   = 0;
     char *firstpart = g_data_input_stream_read_upto ( pd->data_input_stream, separator->str, 1, &len, NULL, NULL );
@@ -229,21 +228,20 @@ static GString *get_next_element( DmenuModePrivateData *pd )
       break;
     }
   }
-  return data;
 }
-
 
 static void get_dmenu_sync ( DmenuModePrivateData *pd )
 {
+  GString *data = g_string_new("");
   while  ( TRUE ) {
-    GString *einfo = get_next_element(pd);
-    if ( einfo->len == 0 ) {
-      g_string_free(einfo, TRUE);
+    g_string_set_size(data, 0);
+    get_next_element(pd, data);
+    if ( data->len == 0 ) {
       break;
     }
-    read_add ( pd, einfo->str, einfo->len );
-    g_string_free(einfo, TRUE);
+    read_add ( pd, data->str, data->len );
   }
+  g_string_free(data, TRUE);
   g_input_stream_close_async ( G_INPUT_STREAM ( pd->input_stream ), G_PRIORITY_LOW, pd->cancel, async_close_callback, pd );
 }
 
