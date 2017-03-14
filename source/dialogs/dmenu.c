@@ -186,6 +186,32 @@ static int get_dmenu_async ( DmenuModePrivateData *pd, int sync_pre_read )
     return TRUE;
 }
 
+static char add_separator_maybe (GString *separator, GString *data, GDataInputStream  *data_input_stream)
+{
+  int cant_read = 0;
+  GString *maybesep = g_string_new("");
+  for (size_t i=0; i < separator->len; i++) {
+    guchar val = g_data_input_stream_read_byte ( data_input_stream, NULL, NULL );
+    if (val == 0) {
+      cant_read = 1;
+      break;
+    }
+    g_string_append_c(maybesep, val);
+  }
+  if (cant_read) {
+    g_string_append(data, maybesep->str);
+    g_string_free(maybesep, TRUE);
+    return 'b';                 /* 'b' -> break */
+  }
+  if (g_string_equal(separator, maybesep)) {
+    g_string_free(maybesep, TRUE);
+    return 'b';                 /* 'b' -> break */
+  }
+  g_string_append(data, maybesep->str);
+  g_string_free(maybesep, TRUE);
+  return 'c';                   /* 'c' -> continue */
+}
+
 static GString *get_next_element( DmenuModePrivateData *pd )
 {
   GString *separator = g_string_new(g_strcompress(pd->separator));
@@ -199,27 +225,9 @@ static GString *get_next_element( DmenuModePrivateData *pd )
     }
     g_string_append(data, firstpart);
     g_free (firstpart);
-    int cant_read = 0;
-    GString *maybesep = g_string_new("");
-    for (size_t i=0; i < separator->len; i++) {
-      guchar val = g_data_input_stream_read_byte ( pd->data_input_stream, NULL, NULL );
-      if (val == 0) {
-        cant_read = 1;
-        break;
-      }
-      g_string_append_c(maybesep, val);
-    }
-    if (cant_read) {
-      g_string_append(data, maybesep->str);
-      g_string_free(maybesep, TRUE);
+    if (add_separator_maybe(separator, data, pd->data_input_stream) == 'b') {
       break;
     }
-    if (g_string_equal(separator, maybesep)) {
-      g_string_free(maybesep, TRUE);
-      break;
-    }
-    g_string_append(data, maybesep->str);
-    g_string_free(maybesep, TRUE);
   }
   return data;
 }
@@ -227,15 +235,16 @@ static GString *get_next_element( DmenuModePrivateData *pd )
 
 static void get_dmenu_sync ( DmenuModePrivateData *pd )
 {
-    while  ( TRUE ) {
-        GString *einfo = get_next_element(pd);
-        if ( einfo->len == 0 ) {
-            break;
-        }
-        read_add ( pd, einfo->str, einfo->len );
-        g_string_free(einfo, TRUE);
+  while  ( TRUE ) {
+    GString *einfo = get_next_element(pd);
+    if ( einfo->len == 0 ) {
+      g_string_free(einfo, TRUE);
+      break;
     }
-    g_input_stream_close_async ( G_INPUT_STREAM ( pd->input_stream ), G_PRIORITY_LOW, pd->cancel, async_close_callback, pd );
+    read_add ( pd, einfo->str, einfo->len );
+    g_string_free(einfo, TRUE);
+  }
+  g_input_stream_close_async ( G_INPUT_STREAM ( pd->input_stream ), G_PRIORITY_LOW, pd->cancel, async_close_callback, pd );
 }
 
 static unsigned int dmenu_mode_get_num_entries ( const Mode *sw )
