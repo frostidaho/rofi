@@ -74,6 +74,7 @@ typedef struct
     /** Settings */
     // Separator.
     char              *separator;
+    GString           *gseparator;
 
     unsigned int      selected_line;
     char              *message;
@@ -198,8 +199,10 @@ static GString *read_bytes(GDataInputStream  *data_input_stream, size_t len) {
   return txt;
 }
 
-static char add_separator_maybe (GString *separator, GString *data, GDataInputStream  *data_input_stream)
+static char add_separator_maybe (DmenuModePrivateData *pd, GString *data)
 {
+  GDataInputStream  *data_input_stream = pd->data_input_stream;
+  GString *separator = pd->gseparator;
   GString *maybesep = read_bytes(data_input_stream, separator->len);
   char retval = 'b';            /* 'b' -> break */
   if (maybesep->len < separator->len) {
@@ -215,26 +218,29 @@ static char add_separator_maybe (GString *separator, GString *data, GDataInputSt
 
 static void get_next_element( DmenuModePrivateData *pd, GString *data )
 {
-  GString *separator = g_string_new(g_strcompress(pd->separator));
+  char *sepstr = pd->gseparator->str;
   while ( TRUE ) {
     gsize len   = 0;
-    char *firstpart = g_data_input_stream_read_upto ( pd->data_input_stream, separator->str, 1, &len, NULL, NULL );
+    char *firstpart = g_data_input_stream_read_upto ( pd->data_input_stream, sepstr, 1, &len, NULL, NULL );
     if (firstpart == NULL) {
       g_free (firstpart);
       break;
     }
     g_string_append(data, firstpart);
     g_free (firstpart);
-    if (add_separator_maybe(separator, data, pd->data_input_stream) == 'b') {
+    if (add_separator_maybe(pd, data) == 'b') {
       break;
     }
   }
 }
 
-static void get_dmenu_sync ( DmenuModePrivateData *pd )
+static void get_dmenu_sync ( DmenuModePrivateData *pd, long int n_items )
 {
   GString *data = g_string_new("");
-  while  ( TRUE ) {
+  if (n_items < 0){
+    n_items = LONG_MAX;
+  }
+  for (long int i=0; i < n_items; i++) {
     g_string_set_size(data, 0);
     get_next_element(pd, data);
     if ( data->len == 0 ) {
@@ -441,14 +447,14 @@ static int dmenu_mode_init ( Mode *sw )
     mode_set_private_data ( sw, g_malloc0 ( sizeof ( DmenuModePrivateData ) ) );
     DmenuModePrivateData *pd = (DmenuModePrivateData *) mode_get_private_data ( sw );
 
-    pd->separator     = "987\n";
+    pd->separator     = "\n";
     pd->selected_line = UINT32_MAX;
 
     find_arg_str ( "-mesg", &( pd->message ) );
 
     // Input data separator.
     find_arg_str ( "-sep", &( pd->separator ) );
-
+    pd->gseparator = g_string_new(g_strcompress(pd->separator));
     find_arg_uint (  "-selected-row", &( pd->selected_line ) );
     // By default we print the unescaped line back.
     pd->format = "s";
@@ -694,7 +700,7 @@ int dmenu_switcher_dialog ( void )
         async = get_dmenu_async ( pd, pre_read );
     }
     else {
-        get_dmenu_sync ( pd );
+      get_dmenu_sync ( pd, -1 );
     }
     char         *input          = NULL;
     unsigned int cmd_list_length = pd->cmd_list_length;
