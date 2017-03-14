@@ -190,11 +190,9 @@ static GString *get_next_element( DmenuModePrivateData *pd )
 {
   int seplen = strlen(pd->separator);
   GString *separator = g_string_new(g_strcompress(pd->separator));
-  /* struct ElementInfo *einfo = malloc(sizeof(struct ElementInfo)); */
   GString *data = g_string_new("");
   while ( TRUE ) {
     gsize len   = 0;
-    /* gsize len2 = 0; */
     char *firstpart = g_data_input_stream_read_upto ( pd->data_input_stream, separator->str, 1, &len, NULL, NULL );
     if (firstpart == NULL) {
       g_free (firstpart);
