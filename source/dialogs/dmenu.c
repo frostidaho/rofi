@@ -201,18 +201,16 @@ static GString *read_bytes(GDataInputStream  *data_input_stream, size_t len) {
 static char add_separator_maybe (GString *separator, GString *data, GDataInputStream  *data_input_stream)
 {
   GString *maybesep = read_bytes(data_input_stream, separator->len);
+  char retval = 'b';            /* 'b' -> break */
   if (maybesep->len < separator->len) {
     g_string_append(data, maybesep->str);
-    g_string_free(maybesep, TRUE);
-    return 'b';                 /* 'b' -> break */
   }
-  if (g_string_equal(separator, maybesep)) {
-    g_string_free(maybesep, TRUE);
-    return 'b';                 /* 'b' -> break */
+  else if (!g_string_equal(separator, maybesep)) {
+    g_string_append(data, maybesep->str);
+    retval = 'c';               /* 'c' -> continue */
   }
-  g_string_append(data, maybesep->str);
   g_string_free(maybesep, TRUE);
-  return 'c';                   /* 'c' -> continue */
+  return retval;
 }
 
 static void get_next_element( DmenuModePrivateData *pd, GString *data )
