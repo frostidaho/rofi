@@ -186,19 +186,22 @@ static int get_dmenu_async ( DmenuModePrivateData *pd, int sync_pre_read )
     return TRUE;
 }
 
-static char add_separator_maybe (GString *separator, GString *data, GDataInputStream  *data_input_stream)
-{
-  int cant_read = 0;
-  GString *maybesep = g_string_new("");
-  for (size_t i=0; i < separator->len; i++) {
+static GString *read_bytes(GDataInputStream  *data_input_stream, size_t len) {
+  GString *txt = g_string_new("");
+  for (size_t i=0; i < len; i++) {
     guchar val = g_data_input_stream_read_byte ( data_input_stream, NULL, NULL );
     if (val == 0) {
-      cant_read = 1;
-      break;
+      return txt;
     }
-    g_string_append_c(maybesep, val);
+    g_string_append_c(txt, val);
   }
-  if (cant_read) {
+  return txt;
+}
+
+static char add_separator_maybe (GString *separator, GString *data, GDataInputStream  *data_input_stream)
+{
+  GString *maybesep = read_bytes(data_input_stream, separator->len);
+  if (maybesep->len < separator->len) {
     g_string_append(data, maybesep->str);
     g_string_free(maybesep, TRUE);
     return 'b';                 /* 'b' -> break */
