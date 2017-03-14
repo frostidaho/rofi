@@ -169,24 +169,6 @@ static void async_read_cancel ( G_GNUC_UNUSED GCancellable *cancel, G_GNUC_UNUSE
     g_log ( LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Cancelled the async read." );
 }
 
-static int get_dmenu_async ( DmenuModePrivateData *pd, int sync_pre_read )
-{
-    while ( sync_pre_read-- ) {
-        gsize len   = 0;
-        char  *data = g_data_input_stream_read_upto ( pd->data_input_stream, pd->separator, 1, &len, NULL, NULL );
-        if ( data == NULL ) {
-            g_input_stream_close_async ( G_INPUT_STREAM ( pd->input_stream ), G_PRIORITY_LOW, pd->cancel, async_close_callback, pd );
-            return FALSE;
-        }
-        g_data_input_stream_read_byte ( pd->data_input_stream, NULL, NULL );
-        read_add ( pd, data, len );
-        g_free ( data );
-    }
-    g_data_input_stream_read_upto_async ( pd->data_input_stream, pd->separator, 1, G_PRIORITY_LOW, pd->cancel,
-                                          async_read_callback, pd );
-    return TRUE;
-}
-
 static GString *read_bytes(GDataInputStream  *data_input_stream, size_t len) {
   GString *txt = g_string_new("");
   for (size_t i=0; i < len; i++) {
@@ -234,23 +216,37 @@ static void get_next_element( DmenuModePrivateData *pd, GString *data )
   }
 }
 
-static void get_dmenu_sync ( DmenuModePrivateData *pd, long int n_items )
+static int get_dmenu_sync ( DmenuModePrivateData *pd, long int n_items )
 {
   GString *data = g_string_new("");
   if (n_items < 0){
     n_items = LONG_MAX;
   }
-  for (long int i=0; i < n_items; i++) {
+  int i = 0;
+  for (i=0; i < n_items; i++) {
     g_string_set_size(data, 0);
     get_next_element(pd, data);
     if ( data->len == 0 ) {
+      g_input_stream_close_async ( G_INPUT_STREAM ( pd->input_stream ), G_PRIORITY_LOW, pd->cancel, async_close_callback, pd );
       break;
     }
     read_add ( pd, data->str, data->len );
   }
   g_string_free(data, TRUE);
-  g_input_stream_close_async ( G_INPUT_STREAM ( pd->input_stream ), G_PRIORITY_LOW, pd->cancel, async_close_callback, pd );
+  return i;
 }
+
+static int get_dmenu_async ( DmenuModePrivateData *pd, int sync_pre_read )
+{
+  int n_read = get_dmenu_sync(pd, sync_pre_read);
+  if (n_read < sync_pre_read) {
+    return FALSE;
+  }
+    g_data_input_stream_read_upto_async ( pd->data_input_stream, pd->separator, 1, G_PRIORITY_LOW, pd->cancel,
+                                          async_read_callback, pd );
+    return TRUE;
+}
+
 
 static unsigned int dmenu_mode_get_num_entries ( const Mode *sw )
 {
