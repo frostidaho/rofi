@@ -169,21 +169,20 @@ static void get_next_element( DmenuModePrivateData *pd, GString *data )
   }
 }
 
-static void get_next_element_async( DmenuModePrivateData *pd, GAsyncResult *res, GString *data )
+static char get_next_element_async( DmenuModePrivateData *pd, GAsyncResult *res, GString *data )
 {
-  while ( TRUE ) {
-    gsize len   = 0;
-    char *firstpart = g_data_input_stream_read_upto_finish ( pd->data_input_stream, res, &len, NULL );
-    if (firstpart == NULL) {
-      g_free (firstpart);
-      break;
-    }
-    g_string_append(data, firstpart);
+  gsize len   = 0;
+  char *firstpart = g_data_input_stream_read_upto_finish ( pd->data_input_stream, res, &len, NULL );
+  if (firstpart == NULL) {
     g_free (firstpart);
-    if (add_separator_maybe(pd, data) == 'b') {
-      break;
-    }
+    return 'b';
   }
+  g_string_append(data, firstpart);
+  g_free (firstpart);
+  if (add_separator_maybe(pd, data) == 'b') {
+    return 'b';
+  }
+  return 'c';
 }
 
 static void async_read_callback ( GObject *source_object, GAsyncResult *res, gpointer user_data )
@@ -194,9 +193,10 @@ static void async_read_callback ( GObject *source_object, GAsyncResult *res, gpo
     GString              *txt = g_string_new("");
     /* GString              *txt  = g_string_new(g_data_input_stream_read_upto_finish ( stream, res, &len, NULL )); */
     /* char                 *data = g_data_input_stream_read_upto_finish ( stream, res, &len, NULL ); */
-    get_next_element_async(pd, res, txt);
+    char val = get_next_element_async(pd, res, txt);
+    printf("get_next_element_async(): %c\n", val);
     if ( txt->len != 0 ) {
-        // Absorb separator, already in buffer so should not block.
+      // Absorb separator, already in buffer so should not block.
       /* g_string_set_size(txt, 0); */
       /* add_separator_maybe(pd, txt); */
       read_add ( pd, txt->str, txt->len );
