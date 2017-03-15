@@ -169,16 +169,36 @@ static void get_next_element( DmenuModePrivateData *pd, GString *data )
   }
 }
 
+static void get_next_element_async( DmenuModePrivateData *pd, GAsyncResult *res, GString *data )
+{
+  while ( TRUE ) {
+    gsize len   = 0;
+    char *firstpart = g_data_input_stream_read_upto_finish ( pd->data_input_stream, res, &len, NULL );
+    if (firstpart == NULL) {
+      g_free (firstpart);
+      break;
+    }
+    g_string_append(data, firstpart);
+    g_free (firstpart);
+    if (add_separator_maybe(pd, data) == 'b') {
+      break;
+    }
+  }
+}
+
 static void async_read_callback ( GObject *source_object, GAsyncResult *res, gpointer user_data )
 {
     GDataInputStream     *stream = (GDataInputStream *) source_object;
     DmenuModePrivateData *pd     = (DmenuModePrivateData *) user_data;
-    gsize                len;
-    GString              *txt  = g_string_new(g_data_input_stream_read_upto_finish ( stream, res, &len, NULL ));
+    /* gsize                len; */
+    GString              *txt = g_string_new("");
+    /* GString              *txt  = g_string_new(g_data_input_stream_read_upto_finish ( stream, res, &len, NULL )); */
     /* char                 *data = g_data_input_stream_read_upto_finish ( stream, res, &len, NULL ); */
+    get_next_element_async(pd, res, txt);
     if ( txt->len != 0 ) {
         // Absorb separator, already in buffer so should not block.
-      add_separator_maybe(pd, txt);
+      /* g_string_set_size(txt, 0); */
+      /* add_separator_maybe(pd, txt); */
       read_add ( pd, txt->str, txt->len );
       g_string_free ( txt, TRUE );
       rofi_view_reload ();
