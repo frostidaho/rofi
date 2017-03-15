@@ -216,13 +216,13 @@ static void get_next_element( DmenuModePrivateData *pd, GString *data )
   }
 }
 
-static int get_dmenu_sync ( DmenuModePrivateData *pd, long int n_items )
+static long int get_dmenu_sync ( DmenuModePrivateData *pd, long int n_items )
 {
   GString *data = g_string_new("");
   if (n_items < 0){
     n_items = LONG_MAX;
   }
-  int i = 0;
+  long int i = 0;
   for (i=0; i < n_items; i++) {
     g_string_set_size(data, 0);
     get_next_element(pd, data);
@@ -238,7 +238,7 @@ static int get_dmenu_sync ( DmenuModePrivateData *pd, long int n_items )
 
 static int get_dmenu_async ( DmenuModePrivateData *pd, int sync_pre_read )
 {
-  int n_read = get_dmenu_sync(pd, sync_pre_read);
+  long int n_read = get_dmenu_sync(pd, sync_pre_read);
   if (n_read < sync_pre_read) {
     return FALSE;
   }
