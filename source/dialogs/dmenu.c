@@ -238,7 +238,7 @@ static long int get_dmenu_sync ( DmenuModePrivateData *pd, long int n_items )
   return i;
 }
 
-static int get_dmenu_async ( DmenuModePrivateData *pd, int sync_pre_read )
+static int get_dmenu_async ( DmenuModePrivateData *pd, long int sync_pre_read )
 {
   long int n_read = get_dmenu_sync(pd, sync_pre_read);
   if (n_read < sync_pre_read) {
