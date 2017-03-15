@@ -219,7 +219,9 @@ static void get_next_element( DmenuModePrivateData *pd, GString *data )
 static long int get_dmenu_sync ( DmenuModePrivateData *pd, long int n_items )
 {
   GString *data = g_string_new("");
-  if (n_items < 0){
+  /* If n_items is negative go ahead and process all or LONG_MAX  */
+  /* entries from pd->input_stream, whichever comes first  */
+  if (n_items < 0) {
     n_items = LONG_MAX;
   }
   long int i = 0;
