@@ -195,6 +195,13 @@ static void async_read_callback ( GObject *source_object, GAsyncResult *res, gpo
     /* char                 *data = g_data_input_stream_read_upto_finish ( stream, res, &len, NULL ); */
     char val = get_next_element_async(pd, res, txt);
     printf("get_next_element_async(): %c\n", val);
+    if ( val == 'c' ) {
+      GString *txt2 = g_string_new("");
+      get_next_element(pd, txt2);
+      g_string_append(txt, txt2->str);
+      g_string_free ( txt2, TRUE );
+    }
+
     if ( txt->len != 0 ) {
       // Absorb separator, already in buffer so should not block.
       /* g_string_set_size(txt, 0); */
