@@ -121,53 +121,6 @@ static void read_add ( DmenuModePrivateData * pd, char *data, gsize len )
 
     pd->cmd_list_length++;
 }
-static void async_read_callback ( GObject *source_object, GAsyncResult *res, gpointer user_data )
-{
-    GDataInputStream     *stream = (GDataInputStream *) source_object;
-    DmenuModePrivateData *pd     = (DmenuModePrivateData *) user_data;
-    gsize                len;
-    char                 *data = g_data_input_stream_read_upto_finish ( stream, res, &len, NULL );
-    if ( data != NULL ) {
-        // Absorb separator, already in buffer so should not block.
-        g_data_input_stream_read_byte ( stream, NULL, NULL );
-        read_add ( pd, data, len );
-        g_free ( data );
-        rofi_view_reload ();
-
-        g_data_input_stream_read_upto_async ( pd->data_input_stream, pd->separator, 1, G_PRIORITY_LOW, pd->cancel,
-                                              async_read_callback, pd );
-        return;
-    }
-    else {
-        GError *error = NULL;
-        // Absorb separator, already in buffer so should not block.
-        // If error == NULL end of stream..
-        g_data_input_stream_read_byte ( stream, NULL, &error );
-        if (  error == NULL ) {
-            // Add empty line.
-            read_add ( pd, "", 0 );
-            rofi_view_reload ();
-
-            g_data_input_stream_read_upto_async ( pd->data_input_stream, pd->separator, 1, G_PRIORITY_LOW, pd->cancel,
-                                                  async_read_callback, pd );
-            return;
-        }
-        else {
-            g_error_free ( error );
-        }
-    }
-    if ( !g_cancellable_is_cancelled ( pd->cancel ) ) {
-        // Hack, don't use get active.
-        g_log ( LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Clearing overlay" );
-        rofi_view_set_overlay ( rofi_view_get_active (), NULL );
-        g_input_stream_close_async ( G_INPUT_STREAM ( stream ), G_PRIORITY_LOW, pd->cancel, async_close_callback, pd );
-    }
-}
-
-static void async_read_cancel ( G_GNUC_UNUSED GCancellable *cancel, G_GNUC_UNUSED gpointer data )
-{
-    g_log ( LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Cancelled the async read." );
-}
 
 static GString *read_bytes(GDataInputStream  *data_input_stream, size_t len) {
   GString *txt = g_string_new("");
@@ -216,6 +169,55 @@ static void get_next_element( DmenuModePrivateData *pd, GString *data )
   }
 }
 
+static void async_read_callback ( GObject *source_object, GAsyncResult *res, gpointer user_data )
+{
+    GDataInputStream     *stream = (GDataInputStream *) source_object;
+    DmenuModePrivateData *pd     = (DmenuModePrivateData *) user_data;
+    gsize                len;
+    GString              *txt  = g_string_new(g_data_input_stream_read_upto_finish ( stream, res, &len, NULL ));
+    /* char                 *data = g_data_input_stream_read_upto_finish ( stream, res, &len, NULL ); */
+    if ( txt->len != 0 ) {
+        // Absorb separator, already in buffer so should not block.
+      add_separator_maybe(pd, txt);
+      read_add ( pd, txt->str, txt->len );
+      g_string_free ( txt, TRUE );
+      rofi_view_reload ();
+      g_data_input_stream_read_upto_async ( pd->data_input_stream, pd->gseparator->str, 1, G_PRIORITY_LOW, pd->cancel,
+                                            async_read_callback, pd );
+      return;
+    }
+    else {
+        GError *error = NULL;
+        // Absorb separator, already in buffer so should not block.
+        // If error == NULL end of stream..
+        g_data_input_stream_read_byte ( stream, NULL, &error );
+        if (  error == NULL ) {
+            // Add empty line.
+            read_add ( pd, "", 0 );
+            rofi_view_reload ();
+
+            g_data_input_stream_read_upto_async ( pd->data_input_stream, pd->gseparator->str, 1, G_PRIORITY_LOW, pd->cancel,
+                                                  async_read_callback, pd );
+            return;
+        }
+        else {
+            g_error_free ( error );
+        }
+    }
+    if ( !g_cancellable_is_cancelled ( pd->cancel ) ) {
+        // Hack, don't use get active.
+        g_log ( LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Clearing overlay" );
+        rofi_view_set_overlay ( rofi_view_get_active (), NULL );
+        g_input_stream_close_async ( G_INPUT_STREAM ( stream ), G_PRIORITY_LOW, pd->cancel, async_close_callback, pd );
+    }
+}
+
+static void async_read_cancel ( G_GNUC_UNUSED GCancellable *cancel, G_GNUC_UNUSED gpointer data )
+{
+    g_log ( LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Cancelled the async read." );
+}
+
+
 static long int get_dmenu_sync ( DmenuModePrivateData *pd, long int n_items )
 {
   GString *data = g_string_new("");
@@ -244,7 +246,7 @@ static int get_dmenu_async ( DmenuModePrivateData *pd, long int sync_pre_read )
   if (n_read < sync_pre_read) {
     return FALSE;
   }
-    g_data_input_stream_read_upto_async ( pd->data_input_stream, pd->separator, 1, G_PRIORITY_LOW, pd->cancel,
+    g_data_input_stream_read_upto_async ( pd->data_input_stream, pd->gseparator->str, 1, G_PRIORITY_LOW, pd->cancel,
                                           async_read_callback, pd );
     return TRUE;
 }
