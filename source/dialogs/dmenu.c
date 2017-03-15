@@ -194,7 +194,7 @@ static void async_read_callback ( GObject *source_object, GAsyncResult *res, gpo
     /* GString              *txt  = g_string_new(g_data_input_stream_read_upto_finish ( stream, res, &len, NULL )); */
     /* char                 *data = g_data_input_stream_read_upto_finish ( stream, res, &len, NULL ); */
     char val = get_next_element_async(pd, res, txt);
-    printf("get_next_element_async(): %c\n", val);
+    /* printf("get_next_element_async(): %c\n", val); */
     if ( val == 'c' ) {
       GString *txt2 = g_string_new("");
       get_next_element(pd, txt2);
