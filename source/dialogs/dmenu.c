@@ -189,10 +189,7 @@ static void async_read_callback ( GObject *source_object, GAsyncResult *res, gpo
 {
     GDataInputStream     *stream = (GDataInputStream *) source_object;
     DmenuModePrivateData *pd     = (DmenuModePrivateData *) user_data;
-    /* gsize                len; */
     GString              *txt = g_string_new("");
-    /* GString              *txt  = g_string_new(g_data_input_stream_read_upto_finish ( stream, res, &len, NULL )); */
-    /* char                 *data = g_data_input_stream_read_upto_finish ( stream, res, &len, NULL ); */
     char val = get_next_element_async(pd, res, txt);
     /* printf("get_next_element_async(): %c\n", val); */
     if ( val == 'c' ) {
@@ -203,9 +200,6 @@ static void async_read_callback ( GObject *source_object, GAsyncResult *res, gpo
     }
 
     if ( txt->len != 0 ) {
-      // Absorb separator, already in buffer so should not block.
-      /* g_string_set_size(txt, 0); */
-      /* add_separator_maybe(pd, txt); */
       read_add ( pd, txt->str, txt->len );
       g_string_free ( txt, TRUE );
       rofi_view_reload ();
