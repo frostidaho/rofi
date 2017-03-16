@@ -151,7 +151,7 @@ static char add_separator_maybe (DmenuModePrivateData *pd, GString *data)
   return retval;
 }
 
-static void get_next_element( DmenuModePrivateData *pd, GString *data )
+static char get_next_element( DmenuModePrivateData *pd, GString *data )
 {
   char *sepstr = pd->gseparator->str;
   while ( TRUE ) {
@@ -159,12 +159,12 @@ static void get_next_element( DmenuModePrivateData *pd, GString *data )
     char *firstpart = g_data_input_stream_read_upto ( pd->data_input_stream, sepstr, 1, &len, NULL, NULL );
     if (firstpart == NULL) {
       g_free (firstpart);
-      break;
+      return 'e';
     }
     g_string_append(data, firstpart);
     g_free (firstpart);
     if (add_separator_maybe(pd, data) == 'b') {
-      break;
+      return 'b';
     }
   }
 }
@@ -235,8 +235,8 @@ static long int get_dmenu_sync ( DmenuModePrivateData *pd, long int n_items )
   long int i = 0;
   for (i=0; i < n_items; i++) {
     g_string_set_size(data, 0);
-    get_next_element(pd, data);
-    if ( data->len == 0 ) {
+    char status = get_next_element(pd, data);
+    if ( status == 'e' ) {
       g_input_stream_close_async ( G_INPUT_STREAM ( pd->input_stream ), G_PRIORITY_LOW, pd->cancel, async_close_callback, pd );
       break;
     }
