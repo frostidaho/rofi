@@ -175,7 +175,7 @@ static char get_next_element_async( DmenuModePrivateData *pd, GAsyncResult *res,
   char *firstpart = g_data_input_stream_read_upto_finish ( pd->data_input_stream, res, &len, NULL );
   if (firstpart == NULL) {
     g_free (firstpart);
-    return 'b';
+    return 'e';
   }
   g_string_append(data, firstpart);
   g_free (firstpart);
@@ -190,31 +190,33 @@ static void async_read_callback ( GObject *source_object, GAsyncResult *res, gpo
     GDataInputStream     *stream = (GDataInputStream *) source_object;
     DmenuModePrivateData *pd     = (DmenuModePrivateData *) user_data;
     GString              *txt = g_string_new("");
-    char val = get_next_element_async(pd, res, txt);
-    /* printf("get_next_element_async(): %c\n", val); */
-    if ( val == 'c' ) {
+    char status = get_next_element_async(pd, res, txt);
+    char status2 = 0;
+    /* printf("status: %c\n", status); */
+    if ( (status == 'c') || (status == 'e') ) {
       GString *txt2 = g_string_new("");
-      get_next_element(pd, txt2);
+      status2 = get_next_element(pd, txt2);
+      /* printf("status2: %c\n", status2); */
       g_string_append(txt, txt2->str);
       g_string_free ( txt2, TRUE );
     }
 
-    if ( txt->len != 0 ) {
+    if ( status2 == 'e' ) {
+      g_string_free ( txt, TRUE );
+      if ( !g_cancellable_is_cancelled ( pd->cancel ) ) {
+        // Hack, don't use get active.
+        g_log ( LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Clearing overlay" );
+        rofi_view_set_overlay ( rofi_view_get_active (), NULL );
+        g_input_stream_close_async ( G_INPUT_STREAM ( stream ), G_PRIORITY_LOW, pd->cancel, async_close_callback, pd );
+      }
+    }
+    else {
       read_add ( pd, txt->str, txt->len );
       g_string_free ( txt, TRUE );
       rofi_view_reload ();
       g_data_input_stream_read_upto_async ( pd->data_input_stream, pd->gseparator->str, 1, G_PRIORITY_LOW, pd->cancel,
                                             async_read_callback, pd );
       return;
-    }
-    else {
-      g_string_free ( txt, TRUE );
-    }
-    if ( !g_cancellable_is_cancelled ( pd->cancel ) ) {
-        // Hack, don't use get active.
-        g_log ( LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "Clearing overlay" );
-        rofi_view_set_overlay ( rofi_view_get_active (), NULL );
-        g_input_stream_close_async ( G_INPUT_STREAM ( stream ), G_PRIORITY_LOW, pd->cancel, async_close_callback, pd );
     }
 }
 
