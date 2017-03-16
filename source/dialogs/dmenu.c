@@ -159,12 +159,12 @@ static char get_next_element( DmenuModePrivateData *pd, GString *data )
     char *firstpart = g_data_input_stream_read_upto ( pd->data_input_stream, sepstr, 1, &len, NULL, NULL );
     if (firstpart == NULL) {
       g_free (firstpart);
-      return 'e';
+      return 'e';               /* 'e' -> error */
     }
     g_string_append(data, firstpart);
     g_free (firstpart);
     if (add_separator_maybe(pd, data) == 'b') {
-      return 'b';
+      return 'b';               /* 'b' -> break */
     }
   }
 }
@@ -175,14 +175,14 @@ static char get_next_element_async( DmenuModePrivateData *pd, GAsyncResult *res,
   char *firstpart = g_data_input_stream_read_upto_finish ( pd->data_input_stream, res, &len, NULL );
   if (firstpart == NULL) {
     g_free (firstpart);
-    return 'e';
+    return 'e';                 /* 'e' -> error */
   }
   g_string_append(data, firstpart);
   g_free (firstpart);
   if (add_separator_maybe(pd, data) == 'b') {
-    return 'b';
+    return 'b';                 /* 'b' -> break */
   }
-  return 'c';
+  return 'c';                   /* 'c' -> continue */
 }
 
 static void async_read_callback ( GObject *source_object, GAsyncResult *res, gpointer user_data )
